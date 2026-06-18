@@ -1,5 +1,6 @@
 import httpx
 import logging
+import os
 from sqlalchemy.orm import Session
 from datetime import datetime
 import models
@@ -8,10 +9,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # User-Agent is required by HH.ru API
+HH_ACCESS_TOKEN = os.getenv("HH_ACCESS_TOKEN")
+
 HEADERS = {
     "User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)",
     "HH-User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)"
 }
+
+if HH_ACCESS_TOKEN:
+    HEADERS["Authorization"] = f"Bearer {HH_ACCESS_TOKEN}"
 
 async def fetch_hh_vacancies(db: Session):
     url = "https://api.hh.ru/vacancies"
