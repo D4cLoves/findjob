@@ -33,6 +33,9 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(job_hh_fetch, 'interval', minutes=30)
     scheduler.start()
     
+    # Run fetch immediately on startup
+    asyncio.create_task(job_hh_fetch())
+    
     # Start Telegram Bot in background
     asyncio.create_task(start_bot())
     
