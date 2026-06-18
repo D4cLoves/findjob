@@ -7,10 +7,10 @@ from contextlib import asynccontextmanager
 import os
 import logging
 
-from . import models
-from .database import engine, get_db, SessionLocal
-from .scrapers import fetch_hh_vacancies
-from .bot import start_bot
+import models
+from database import engine, get_db, SessionLocal
+from scrapers import fetch_hh_vacancies
+from bot import start_bot
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

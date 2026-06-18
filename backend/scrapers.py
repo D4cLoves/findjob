@@ -2,7 +2,7 @@ import httpx
 import logging
 from sqlalchemy.orm import Session
 from datetime import datetime
-from . import models
+import models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
