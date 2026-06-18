@@ -64,6 +64,16 @@ def get_vacancies(status: str = "new", skip: int = 0, limit: int = 50, db: Sessi
 def ping():
     return {"status": "ok", "message": "Keep-alive ping successful"}
 
+@app.get("/api/fetch-debug")
+async def fetch_debug(db: Session = Depends(get_db)):
+    try:
+        from scrapers import fetch_hh_vacancies
+        count = await fetch_hh_vacancies(db)
+        return {"status": "success", "vacancies_added": count}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error_message": str(e), "traceback": traceback.format_exc()}
+
 @app.post("/api/vacancies/{vacancy_id}/status")
 def update_vacancy_status(vacancy_id: int, status: str, db: Session = Depends(get_db)):
     vacancy = db.query(models.Vacancy).filter(models.Vacancy.id == vacancy_id).first()

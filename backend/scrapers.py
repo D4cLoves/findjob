@@ -69,6 +69,7 @@ async def fetch_hh_vacancies(db: Session):
                             
                 except Exception as e:
                     logger.error(f"Error fetching HH.ru for {text} ({experience}): {e}")
+                    raise e
                     
         db.commit()
         logger.info(f"Fetched HH.ru: Added {new_vacancies_count} new vacancies total.")
