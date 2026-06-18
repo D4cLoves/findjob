@@ -87,9 +87,36 @@ async def fetch_hh_vacancies(db: Session):
 
 async def fetch_telegram_vacancies(db: Session):
     from bs4 import BeautifulSoup
+    import re
     
-    channels = ["csharp_jobs", "react_jobs", "juniors_jobs_it", "job_react"]
-    keywords = ["c#", "react", "asp.net", "dot net", "dotnet", "c sharp", "сишарп"]
+    # Public Telegram channels to scrape (added user-suggested and other popular ones)
+    channels = [
+        "csharp_jobs", "react_jobs", "juniors_jobs_it", "job_react",
+        "java_c_net_golang_jobs", "myresume_ru", "juno_jobs", "easy_csharp_job", 
+        "forgoandrust", "dotnetjob", "reactjob", "frontend_jobs", 
+        "job_junior", "backend_jobs", "csharpjobs", "it_jobs"
+    ]
+    
+    # Specific substrings that have no false positives
+    specific_substrings = ["c#", "react", "asp.net", "dotnet", "csharp", "aspnet", "blazor", "nextjs", "next.js", "redux", "сишарп"]
+    # Regex with word boundaries for short or common terms to avoid false positives
+    boundary_patterns = [
+        re.compile(r"\bnet\b"), 
+        re.compile(r"\bts\b"), 
+        re.compile(r"\btypescript\b"), 
+        re.compile(r"\bnet core\b"), 
+        re.compile(r"\bef core\b"), 
+        re.compile(r"\bentity framework\b")
+    ]
+    
+    def matches_keywords(text: str) -> bool:
+        text_lower = text.lower()
+        if any(sub in text_lower for sub in specific_substrings):
+            return True
+        for pattern in boundary_patterns:
+            if pattern.search(text_lower):
+                return True
+        return False
     
     new_vacancies_count = 0
     async with httpx.AsyncClient() as client:
@@ -111,11 +138,7 @@ async def fetch_telegram_vacancies(db: Session):
                         continue
                     
                     text_content = text_div.get_text()
-                    text_content_lower = text_content.lower()
-                    
-                    # Check keywords
-                    has_keyword = any(kw in text_content_lower for kw in keywords)
-                    if not has_keyword:
+                    if not matches_keywords(text_content):
                         continue
                     
                     # Find message link and ID
@@ -138,6 +161,14 @@ async def fetch_telegram_vacancies(db: Session):
                         if len(title) > 100:
                             title = title[:97] + "..."
                             
+                        # Determine dominant tech stack for tag
+                        text_lower = text_content.lower()
+                        tech_tag = "React / C#"
+                        if "react" in text_lower and not ("c#" in text_lower or "net" in text_lower):
+                            tech_tag = "React"
+                        elif ("c#" in text_lower or "net" in text_lower) and "react" not in text_lower:
+                            tech_tag = "C#"
+                            
                         # Save vacancy
                         new_vac = models.Vacancy(
                             source_id=source_id,
@@ -146,7 +177,7 @@ async def fetch_telegram_vacancies(db: Session):
                             salary="По договоренности",
                             url=msg_url,
                             description=text_content,
-                            tech_stack="React / C#" if "react" in text_content_lower and "c#" in text_content_lower else ("React" if "react" in text_content_lower else "C#"),
+                            tech_stack=tech_tag,
                             status="new"
                         )
                         db.add(new_vac)
