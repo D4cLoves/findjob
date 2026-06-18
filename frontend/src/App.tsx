@@ -13,6 +13,7 @@ interface Vacancy {
   description: string;
   tech_stack: string;
   status: string;
+  cover_letter?: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
