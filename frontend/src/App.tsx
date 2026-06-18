@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Bookmark, Settings, ExternalLink, ThumbsUp, X, FileText } from 'lucide-react';
+import { Briefcase, Bookmark, Settings, ExternalLink, ThumbsUp, X } from 'lucide-react';
 import './App.css';
 
 // Type definitions
