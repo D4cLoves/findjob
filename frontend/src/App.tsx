@@ -26,6 +26,11 @@ function App() {
   const [cvSaving, setCvSaving] = useState(false);
   const [generatingLetterId, setGeneratingLetterId] = useState<number | null>(null);
   const [letters, setLetters] = useState<Record<number, string>>({});
+  const [expandedVacancies, setExpandedVacancies] = useState<Record<number, boolean>>({});
+
+  const toggleExpand = (id: number) => {
+    setExpandedVacancies(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Initialize Telegram WebApp
   useEffect(() => {
@@ -152,6 +157,9 @@ function App() {
     const isTg = vacancy.source_id.startsWith("tg_");
     const tgContact = isTg ? getTelegramContact(vacancy.description, vacancy.company) : null;
     const coverLetterText = letters[vacancy.id] || vacancy.cover_letter;
+    const isExpanded = !!expandedVacancies[vacancy.id];
+    const cleanDescription = vacancy.description.replace(/<[^>]+>/g, '').trim();
+    const shouldTruncate = cleanDescription.length > 250;
     
     return (
       <div className="vacancy-card" key={vacancy.id}>
@@ -176,9 +184,18 @@ function App() {
             <span className="badge">{vacancy.tech_stack}</span>
           </div>
           
-          <p style={{ fontSize: '0.88rem', color: '#aeaeb2', marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-            {vacancy.description.replace(/<[^>]+>/g, '').slice(0, 250) + (vacancy.description.length > 250 ? '...' : '')}
-          </p>
+          <div className={`description-container ${shouldTruncate && !isExpanded ? 'collapsed' : 'expanded'}`}>
+            <p className="description-text">
+              {cleanDescription}
+            </p>
+            {shouldTruncate && !isExpanded && <div className="fade-overlay"></div>}
+          </div>
+          
+          {shouldTruncate && (
+            <button className="btn-link" onClick={() => toggleExpand(vacancy.id)}>
+              {isExpanded ? "Свернуть описание" : "Развернуть описание"}
+            </button>
+          )}
 
           {/* Generated Cover Letter notes style */}
           {coverLetterText && (

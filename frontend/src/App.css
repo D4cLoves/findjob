@@ -99,6 +99,8 @@
   color: #ffffff;
   margin-bottom: 6px;
   letter-spacing: -0.2px;
+  line-height: 1.35;
+  word-wrap: break-word;
 }
 
 .card-company {
@@ -247,4 +249,58 @@
 .nav-item svg {
   width: 22px;
   height: 22px;
+}
+
+/* Expandable Description */
+.description-container {
+  position: relative;
+  margin-bottom: 8px;
+  transition: max-height 0.25s ease-out;
+}
+
+.description-container.collapsed {
+  max-height: 120px;
+  overflow: hidden;
+}
+
+.description-container.expanded {
+  max-height: 2000px;
+}
+
+.description-text {
+  font-size: 0.88rem;
+  color: #aeaeb2;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.fade-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(28, 28, 30, 0), #1c1c1e);
+  pointer-events: none;
+}
+
+.btn-link {
+  background: transparent;
+  border: none;
+  color: #0a84ff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 4px 0;
+  margin-bottom: 16px;
+  cursor: pointer;
+  display: inline-block;
+  text-align: left;
+  outline: none;
+  transition: opacity 0.15s ease;
+}
+
+.btn-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
 }
