@@ -53,7 +53,7 @@ async def generate_cover_letter(vacancy_description: str, user_cv: str, is_teleg
 4. В конце вырази готовность выполнить тестовое задание или пройти интервью.
 """
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
         response = await model.generate_content_async(prompt)
         return response.text.strip()
     except Exception as e:
@@ -74,7 +74,7 @@ async def analyze_vacancy(vacancy_description: str) -> str:
 {vacancy_description}
 """
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-3.5-flash')
         response = await model.generate_content_async(prompt)
         return response.text.strip()
     except Exception as e:
