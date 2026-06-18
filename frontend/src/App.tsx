@@ -132,6 +132,22 @@ function App() {
     alert("Скопировано!");
   };
 
+  const openLink = (url: string, coverLetterText?: string) => {
+    if (coverLetterText) {
+      navigator.clipboard.writeText(coverLetterText);
+    }
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      if (url.startsWith('https://t.me/') || url.startsWith('tg://')) {
+        tg.openTelegramLink(url);
+      } else {
+        tg.openLink(url);
+      }
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
   const renderVacancyCard = (vacancy: Vacancy) => {
     const isTg = vacancy.source_id.startsWith("tg_");
     const tgContact = isTg ? getTelegramContact(vacancy.description, vacancy.company) : null;
@@ -197,16 +213,16 @@ function App() {
               
               {isTg ? (
                 tgContact ? (
-                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => window.open(`https://t.me/${tgContact.replace('@', '')}`, '_blank')}>
+                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => openLink(`https://t.me/${tgContact.replace('@', '')}`, coverLetterText)}>
                     <ExternalLink size={16} /> Откликнуться {tgContact}
                   </button>
                 ) : (
-                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => window.open(vacancy.url, '_blank')}>
+                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => openLink(vacancy.url, coverLetterText)}>
                     <ExternalLink size={16} /> Пост в Telegram
                   </button>
                 )
               ) : (
-                <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => window.open(vacancy.url, '_blank')}>
+                <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => openLink(vacancy.url, coverLetterText)}>
                   <ExternalLink size={16} /> Откликнуться на HH
                 </button>
               )}
