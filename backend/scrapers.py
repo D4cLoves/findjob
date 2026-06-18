@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 
 # User-Agent is required by HH.ru API
 HEADERS = {
-    "User-Agent": "FindJobBot/1.0 (test@example.com)"
+    "User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)",
+    "HH-User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)"
 }
 
 async def fetch_hh_vacancies(db: Session):
