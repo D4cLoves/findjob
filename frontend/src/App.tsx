@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Bookmark, Settings, ExternalLink, ThumbsUp, X } from 'lucide-react';
+import { Briefcase, Bookmark, Settings, ExternalLink, ThumbsUp, X, FileText } from 'lucide-react';
 import './App.css';
 
 // Type definitions
@@ -27,7 +27,7 @@ function App() {
   const [generatingLetterId, setGeneratingLetterId] = useState<number | null>(null);
   const [letters, setLetters] = useState<Record<number, string>>({});
 
-  // Initialize Telegram WebApp (simulated if running in browser)
+  // Initialize Telegram WebApp
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
@@ -93,7 +93,6 @@ function App() {
       await fetch(`${API_URL}/vacancies/${id}/status?status=${status}`, {
         method: 'POST'
       });
-      // Remove from current list
       setVacancies(vacancies.filter(v => v.id !== id));
     } catch (error) {
       console.error("Error updating status:", error);
@@ -114,7 +113,7 @@ function App() {
       setLetters(prev => ({ ...prev, [id]: data.cover_letter }));
     } catch (error: any) {
       console.error("Error generating letter:", error);
-      alert(error.message || "Не удалось сгенерировать письмо. Пожалуйста, заполни профиль в Настройках!");
+      alert(error.message || "Не удалось сгенерировать письмо. Заполни профиль во вкладке Настройки!");
     } finally {
       setGeneratingLetterId(null);
     }
@@ -130,7 +129,7 @@ function App() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Сопроводительное письмо скопировано в буфер обмена!");
+    alert("Скопировано!");
   };
 
   const renderVacancyCard = (vacancy: Vacancy) => {
@@ -140,77 +139,98 @@ function App() {
     
     return (
       <div className="vacancy-card" key={vacancy.id}>
-        <div className="card-title">{vacancy.title}</div>
-        <div className="card-company">
-          <Briefcase size={16} /> {vacancy.company}
-        </div>
-        {vacancy.salary && <div className="card-salary">{vacancy.salary}</div>}
-        
-        <p style={{ fontSize: '0.85rem', color: 'var(--accent-color)', fontWeight: '600', marginBottom: '8px' }}>
-          Теги: <span className="badge">{vacancy.tech_stack}</span>
-        </p>
-        
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', whiteSpace: 'pre-wrap' }}>
-          {vacancy.description.replace(/<[^>]+>/g, '').slice(0, 300) + (vacancy.description.length > 300 ? '...' : '')}
-        </p>
-
-        {coverLetterText && (
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '12px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--success-color)' }}>
-                {isTg ? "✨ Сгенерированный питч для TG:" : "✨ Сопроводительное письмо для HH:"}
-              </span>
-              <button 
-                className="btn btn-secondary" 
-                style={{ padding: '4px 8px', fontSize: '0.75rem', width: 'auto' }} 
-                onClick={() => copyToClipboard(coverLetterText)}
-              >
-                Копировать
-              </button>
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', maxHeight: '150px', overflowY: 'auto' }}>
-              {coverLetterText}
-            </p>
+        {/* macOS Style Titlebar */}
+        <div className="window-titlebar">
+          <div className="window-dots">
+            <span className="dot dot-red"></span>
+            <span className="dot dot-yellow"></span>
+            <span className="dot dot-green"></span>
           </div>
-        )}
+          <div className="window-title">{isTg ? "Telegram Vacancy" : "HH.ru Vacancy"}</div>
+        </div>
 
-        <div className="card-actions" style={{ flexWrap: 'wrap' }}>
-          {activeTab === 'feed' ? (
-            <>
-              <button className="btn btn-secondary" onClick={() => updateStatus(vacancy.id, 'skipped')}>
-                <X size={18} /> Пропустить
-              </button>
-              <button className="btn btn-primary" onClick={() => updateStatus(vacancy.id, 'saved')}>
-                <Bookmark size={18} /> Сохранить
-              </button>
-            </>
-          ) : (
-            <>
+        <div className="card-body">
+          <div className="card-title">{vacancy.title}</div>
+          <div className="card-company">
+            <Briefcase size={14} /> {vacancy.company}
+          </div>
+          
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap' }}>
+            {vacancy.salary && <span className="card-salary">{vacancy.salary}</span>}
+            <span className="badge">{vacancy.tech_stack}</span>
+          </div>
+          
+          <p style={{ fontSize: '0.88rem', color: '#aeaeb2', marginBottom: '16px', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+            {vacancy.description.replace(/<[^>]+>/g, '').slice(0, 250) + (vacancy.description.length > 250 ? '...' : '')}
+          </p>
+
+          {/* Generated Cover Letter notes style */}
+          {coverLetterText && (
+            <div className="ai-note-box">
+              <div className="ai-note-header">
+                <span>{isTg ? "✨ ТЕЛЕГРАМ ПИТЧ" : "✨ СОПРОВОДИТЕЛЬНОЕ ПИСЬМО"}</span>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ padding: '4px 8px', fontSize: '0.7rem', width: 'auto' }} 
+                  onClick={() => copyToClipboard(coverLetterText)}
+                >
+                  Копировать
+                </button>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: '#f2f2f7', whiteSpace: 'pre-wrap', maxHeight: '120px', overflowY: 'auto', lineHeight: '1.4' }}>
+                {coverLetterText}
+              </p>
+            </div>
+          )}
+
+          <div className="card-actions" style={{ flexDirection: 'column', gap: '8px' }}>
+            {/* Action Buttons Row */}
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
               <button 
                 className="btn btn-secondary" 
+                style={{ flex: 1 }}
                 disabled={generatingLetterId === vacancy.id}
                 onClick={() => generateLetter(vacancy.id)}
               >
-                {generatingLetterId === vacancy.id ? "Генерация..." : "🪄 Написать сопровод"}
+                {generatingLetterId === vacancy.id ? "Магия ИИ..." : "🪄 Сопровод"}
               </button>
               
               {isTg ? (
                 tgContact ? (
-                  <button className="btn btn-primary" onClick={() => window.open(`https://t.me/${tgContact.replace('@', '')}`, '_blank')}>
-                    <ExternalLink size={18} /> Написать {tgContact}
+                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => window.open(`https://t.me/${tgContact.replace('@', '')}`, '_blank')}>
+                    <ExternalLink size={16} /> Откликнуться {tgContact}
                   </button>
                 ) : (
-                  <button className="btn btn-primary" onClick={() => window.open(vacancy.url, '_blank')}>
-                    <ExternalLink size={18} /> Открыть пост в TG
+                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => window.open(vacancy.url, '_blank')}>
+                    <ExternalLink size={16} /> Пост в Telegram
                   </button>
                 )
               ) : (
-                <button className="btn btn-primary" onClick={() => window.open(vacancy.url, '_blank')}>
-                  <ExternalLink size={18} /> Открыть на HH.ru
+                <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => window.open(vacancy.url, '_blank')}>
+                  <ExternalLink size={16} /> Откликнуться на HH
                 </button>
               )}
-            </>
-          )}
+            </div>
+
+            {/* Skip/Save Row (Only in Feed tab) */}
+            {activeTab === 'feed' && (
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => updateStatus(vacancy.id, 'skipped')}>
+                  <X size={16} /> Скрыть
+                </button>
+                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => updateStatus(vacancy.id, 'saved')}>
+                  <Bookmark size={16} /> В избранное
+                </button>
+              </div>
+            )}
+            
+            {/* Delete button (Only in Saved tab) */}
+            {activeTab === 'saved' && (
+              <button className="btn btn-danger" style={{ width: '100%' }} onClick={() => updateStatus(vacancy.id, 'skipped')}>
+                Удалить из сохраненных
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -219,57 +239,59 @@ function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <h1>FindJobBot</h1>
+        <h1>{activeTab === 'feed' ? "Лента вакансий" : activeTab === 'saved' ? "Избранное" : "Настройки"}</h1>
       </header>
 
       <main className="main-content">
         {activeTab === 'settings' ? (
-          <div style={{ background: 'var(--glass-bg)', padding: '20px', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '12px' }}>Твой профиль для ИИ</h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              Опиши свой опыт, пет-проекты, навыки и приложи ссылки на GitHub / резюме. На основе этого текста Gemini будет генерировать индивидуальные сопроводительные письма.
+          <div style={{ background: '#1c1c1e', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
+            <h2 style={{ fontSize: '1.05rem', marginBottom: '8px', fontWeight: '600' }}>Резюме и ссылки для ИИ</h2>
+            <p style={{ fontSize: '0.8rem', color: '#aeaeb2', marginBottom: '16px', lineHeight: '1.4' }}>
+              Опиши свои навыки, проекты и опыт. Вставь ссылки на GitHub и резюме. На основе этого текста ИИ будет генерировать письма рекрутерам.
             </p>
             <textarea
               style={{
                 width: '100%',
-                height: '250px',
-                background: 'rgba(0,0,0,0.2)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '12px',
-                color: 'var(--text-primary)',
+                height: '240px',
+                background: '#121212',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '8px',
+                color: '#ffffff',
                 padding: '12px',
-                fontSize: '0.9rem',
+                fontSize: '0.88rem',
                 fontFamily: 'inherit',
                 resize: 'none',
                 outline: 'none',
-                marginBottom: '16px'
+                marginBottom: '16px',
+                lineHeight: '1.4'
               }}
               value={userCv}
               onChange={(e) => setUserCv(e.target.value)}
-              placeholder="Пример: Меня зовут Владислав. Мне 18 лет, занимаюсь разработкой с 14 лет. Мой стек: C#, ASP.NET, Entity Framework, React, TypeScript. Мой GitHub: github.com/username..."
+              placeholder="Пример: Меня зовут Владислав. Мне 18 лет, пишу код с 14 лет. Мой стек: C#, ASP.NET, Entity Framework, React, TypeScript. Мой GitHub: github.com/D4cLoves..."
             />
             <button 
               className="btn btn-primary" 
               disabled={cvSaving}
               onClick={saveSettings}
-              style={{ width: '100%' }}
+              style={{ width: '100%', padding: '12px' }}
             >
-              {cvSaving ? 'Сохранение...' : 'Сохранить профиль'}
+              {cvSaving ? 'Сохранение...' : 'Сохранить настройки'}
             </button>
           </div>
         ) : loading ? (
-          <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text-secondary)' }}>
-            Загрузка вакансий...
+          <div style={{ textAlign: 'center', marginTop: '50px', color: '#aeaeb2', fontSize: '0.9rem' }}>
+            Поиск вакансий...
           </div>
         ) : vacancies.length > 0 ? (
           vacancies.map(renderVacancyCard)
         ) : (
-          <div style={{ textAlign: 'center', marginTop: '50px', color: 'var(--text-secondary)' }}>
-            Пока нет новых вакансий.
+          <div style={{ textAlign: 'center', marginTop: '50px', color: '#aeaeb2', fontSize: '0.9rem' }}>
+            Нет новых вакансий по фильтрам.
           </div>
         )}
       </main>
 
+      {/* macOS Dock Bottom Navigation */}
       <nav className="bottom-nav">
         <button 
           className={`nav-item ${activeTab === 'feed' ? 'active' : ''}`}
@@ -285,7 +307,7 @@ function App() {
           style={{ background: 'transparent' }}
         >
           <Bookmark />
-          <span>Сохраненные</span>
+          <span>Избранное</span>
         </button>
         <button 
           className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
@@ -293,7 +315,7 @@ function App() {
           style={{ background: 'transparent' }}
         >
           <Settings />
-          <span>Настройки</span>
+          <span>Профиль</span>
         </button>
       </nav>
     </div>

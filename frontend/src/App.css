@@ -5,65 +5,105 @@
   max-width: 600px;
   margin: 0 auto;
   position: relative;
+  background: #121212; /* macOS dark background */
+  overflow: hidden;
 }
 
 .header {
-  padding: 20px;
+  padding: 16px;
   text-align: center;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--glass-border);
+  background: rgba(28, 28, 30, 0.85); /* macOS menu bar */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
 .header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.3px;
 }
 
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  padding-bottom: 80px; /* space for nav */
+  padding: 16px;
+  padding-bottom: 100px; /* Space for the floating dock */
 }
 
-/* Glassmorphism Card */
+/* macOS Window Card */
 .vacancy-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: var(--glass-shadow);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  position: relative;
+  background: #1c1c1e; /* macOS window body */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .vacancy-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* macOS Window Title Bar */
+.window-titlebar {
+  height: 36px;
+  background: #2c2c2e; /* macOS window header */
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.window-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.dot-red { background: #ff5f56; }
+.dot-yellow { background: #ffbd2e; }
+.dot-green { background: #27c93f; }
+
+.window-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #8e8e93;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+/* Card Content */
+.card-body {
+  padding: 16px;
 }
 
 .card-title {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: 600;
-  margin-bottom: 8px;
-  color: #fff;
+  color: #ffffff;
+  margin-bottom: 6px;
+  letter-spacing: -0.2px;
 }
 
 .card-company {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+  font-size: 0.85rem;
+  color: #aeaeb2;
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -72,84 +112,114 @@
 
 .card-salary {
   display: inline-block;
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--success-color);
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  background: rgba(48, 209, 88, 0.15); /* macOS green tint */
+  color: #30d158;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
   font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.card-stack {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .badge {
-  background: rgba(99, 102, 241, 0.15);
-  color: #818cf8;
-  padding: 4px 10px;
-  border-radius: 8px;
+  background: rgba(10, 132, 255, 0.15); /* macOS blue tint */
+  color: #0a84ff;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 500;
 }
 
+/* AI Letter Box (macOS Notes style) */
+.ai-note-box {
+  background: #2c2c2e;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.ai-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffd60a; /* Apple gold tint */
+}
+
+/* Buttons */
 .card-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 16px;
+  gap: 8px;
 }
 
 .btn {
   flex: 1;
-  padding: 12px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.85rem;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
+  gap: 6px;
+  transition: background 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+
+.btn:active {
+  transform: scale(0.98);
 }
 
 .btn-primary {
-  background: var(--accent-color);
-  color: white;
+  background: #007aff; /* Apple Blue */
+  color: #ffffff;
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: #0066cc;
 }
 
 .btn-secondary {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  color: var(--text-primary);
+  background: #2c2c2e; /* macOS dark button */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #ffffff;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #3a3a3c;
 }
 
-/* Bottom Navigation */
+.btn-danger {
+  background: rgba(255, 69, 58, 0.15); /* macOS red tint */
+  color: #ff453a;
+  border: 1px solid rgba(255, 69, 58, 0.1);
+}
+
+.btn-danger:hover {
+  background: rgba(255, 69, 58, 0.25);
+}
+
+/* macOS Floating Dock Navigation */
 .bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 70px;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--glass-border);
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  height: 64px;
+  background: rgba(30, 30, 30, 0.75);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  padding: 0 12px;
 }
 
 .nav-item {
@@ -157,18 +227,24 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: var(--text-secondary);
+  color: #8e8e93;
   text-decoration: none;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 500;
-  transition: color 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 50px;
+  height: 50px;
+  justify-content: center;
+  border-radius: 12px;
 }
 
 .nav-item.active {
-  color: var(--accent-color);
+  color: #0a84ff;
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-4px);
 }
 
 .nav-item svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
