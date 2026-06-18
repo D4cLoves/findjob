@@ -9,7 +9,7 @@ import logging
 
 import models
 from database import engine, get_db, SessionLocal
-from scrapers import fetch_hh_vacancies
+from scrapers import fetch_hh_vacancies, fetch_telegram_vacancies
 from bot import start_bot
 
 logging.basicConfig(level=logging.INFO)
@@ -22,19 +22,29 @@ async def lifespan(app: FastAPI):
     # Initialize Scheduler
     scheduler = AsyncIOScheduler()
     
-    async def job_hh_fetch():
+    async def job_fetch_all():
         db = SessionLocal()
         try:
-            logger.info("Running scheduled HH.ru fetch...")
-            await fetch_hh_vacancies(db)
+            logger.info("Running scheduled fetches...")
+            # Fetch HH.ru
+            try:
+                await fetch_hh_vacancies(db)
+            except Exception as e:
+                logger.error(f"HH.ru fetch error: {e}")
+                
+            # Fetch Telegram
+            try:
+                await fetch_telegram_vacancies(db)
+            except Exception as e:
+                logger.error(f"Telegram fetch error: {e}")
         finally:
             db.close()
 
-    scheduler.add_job(job_hh_fetch, 'interval', minutes=30)
+    scheduler.add_job(job_fetch_all, 'interval', minutes=30)
     scheduler.start()
     
     # Run fetch immediately on startup
-    asyncio.create_task(job_hh_fetch())
+    asyncio.create_task(job_fetch_all())
     
     # Start Telegram Bot in background
     asyncio.create_task(start_bot())
@@ -66,13 +76,23 @@ def ping():
 
 @app.get("/api/fetch-debug")
 async def fetch_debug(db: Session = Depends(get_db)):
+    results = {}
+    
+    # Try fetching HH.ru
     try:
-        from scrapers import fetch_hh_vacancies
-        count = await fetch_hh_vacancies(db)
-        return {"status": "success", "vacancies_added": count}
+        count_hh = await fetch_hh_vacancies(db)
+        results["hh"] = {"status": "success", "vacancies_added": count_hh}
     except Exception as e:
-        import traceback
-        return {"status": "error", "error_message": str(e), "traceback": traceback.format_exc()}
+        results["hh"] = {"status": "error", "error_message": str(e)}
+        
+    # Try fetching Telegram
+    try:
+        count_tg = await fetch_telegram_vacancies(db)
+        results["telegram"] = {"status": "success", "vacancies_added": count_tg}
+    except Exception as e:
+        results["telegram"] = {"status": "error", "error_message": str(e)}
+        
+    return results
 
 @app.post("/api/vacancies/{vacancy_id}/status")
 def update_vacancy_status(vacancy_id: int, status: str, db: Session = Depends(get_db)):
