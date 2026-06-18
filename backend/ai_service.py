@@ -58,7 +58,7 @@ async def generate_cover_letter(vacancy_description: str, user_cv: str, is_teleg
         return response.text.strip()
     except Exception as e:
         logger.error(f"Error generating cover letter: {e}")
-        return "Ошибка генерации сопроводительного письма."
+        return f"Ошибка генерации сопроводительного письма: {str(e)}"
 
 async def analyze_vacancy(vacancy_description: str) -> str:
     if not GEMINI_API_KEY:
