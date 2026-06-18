@@ -66,7 +66,10 @@ async def fetch_hh_vacancies(db: Session):
                             )
                             db.add(new_vac)
                             new_vacancies_count += 1
-                            
+                except httpx.HTTPStatusError as e:
+                    error_detail = f"HTTP Error {e.response.status_code}: {e.response.text}"
+                    logger.error(f"Error fetching HH.ru for {text} ({experience}): {error_detail}")
+                    raise Exception(error_detail)
                 except Exception as e:
                     logger.error(f"Error fetching HH.ru for {text} ({experience}): {e}")
                     raise e
