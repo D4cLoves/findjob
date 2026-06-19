@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Bookmark, Settings, ExternalLink, ThumbsUp, X } from 'lucide-react';
+import { Briefcase, Settings, ExternalLink, ThumbsUp, X } from 'lucide-react';
 import './App.css';
 
 // Type definitions
@@ -27,6 +27,9 @@ function App() {
   const [generatingLetterId, setGeneratingLetterId] = useState<number | null>(null);
   const [letters, setLetters] = useState<Record<number, string>>({});
   const [expandedVacancies, setExpandedVacancies] = useState<Record<number, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStack, setFilterStack] = useState('all');
+  const [stats, setStats] = useState({ total: 0, new: 0, applied: 0, skipped: 0 });
 
   const toggleExpand = (id: number) => {
     setExpandedVacancies(prev => ({ ...prev, [id]: !prev[id] }));
@@ -44,6 +47,7 @@ function App() {
   useEffect(() => {
     if (activeTab === 'settings') {
       fetchSettings();
+      fetchStats();
     } else {
       fetchVacancies();
     }
@@ -52,7 +56,7 @@ function App() {
   const fetchVacancies = async () => {
     setLoading(true);
     try {
-      const status = activeTab === 'feed' ? 'new' : 'saved';
+      const status = activeTab === 'feed' ? 'new' : 'applied';
       const response = await fetch(`${API_URL}/vacancies?status=${status}`);
       const data = await response.json();
       setVacancies(data);
@@ -73,6 +77,16 @@ function App() {
       console.error("Error fetching settings:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_URL}/stats`);
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
     }
   };
 
@@ -98,7 +112,9 @@ function App() {
       await fetch(`${API_URL}/vacancies/${id}/status?status=${status}`, {
         method: 'POST'
       });
-      setVacancies(vacancies.filter(v => v.id !== id));
+      if (activeTab === 'feed' || status === 'skipped') {
+        setVacancies(prev => prev.filter(v => v.id !== id));
+      }
     } catch (error) {
       console.error("Error updating status:", error);
     }
@@ -137,9 +153,12 @@ function App() {
     alert("Скопировано!");
   };
 
-  const openLink = (url: string, coverLetterText?: string) => {
+  const openLink = (url: string, vacancyId?: number, coverLetterText?: string) => {
     if (coverLetterText) {
       navigator.clipboard.writeText(coverLetterText);
+    }
+    if (vacancyId) {
+      updateStatus(vacancyId, 'applied');
     }
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
@@ -195,7 +214,7 @@ function App() {
     };
   };
 
-  const renderLinkifiedText = (text: string, coverLetterText?: string) => {
+  const renderLinkifiedText = (text: string, vacancyId: number, coverLetterText?: string) => {
     const regex = /(https?:\/\/[^\s()<>]+)|([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(@[a-zA-Z0-9_]{5,32})/g;
     
     const elements: React.ReactNode[] = [];
@@ -225,7 +244,7 @@ function App() {
               href="#" 
               onClick={(e) => { 
                 e.preventDefault(); 
-                openLink(cleanUrl, coverLetterText); 
+                openLink(cleanUrl, vacancyId, coverLetterText); 
               }}
               style={{ color: '#0a84ff', textDecoration: 'underline', cursor: 'pointer', wordBreak: 'break-all' }}
             >
@@ -241,7 +260,7 @@ function App() {
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              openLink(`mailto:${matchText}`, coverLetterText);
+              openLink(`mailto:${matchText}`, vacancyId, coverLetterText);
             }}
             style={{ color: '#0a84ff', textDecoration: 'underline', wordBreak: 'break-all' }}
           >
@@ -256,7 +275,7 @@ function App() {
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              openLink(`https://t.me/${cleanUsername}`, coverLetterText);
+              openLink(`https://t.me/${cleanUsername}`, vacancyId, coverLetterText);
             }}
             style={{ color: '#0a84ff', textDecoration: 'underline' }}
           >
@@ -312,7 +331,7 @@ function App() {
           
           <div className={`description-container ${shouldTruncate && !isExpanded ? 'collapsed' : 'expanded'}`}>
             <p className="description-text">
-              {renderLinkifiedText(cleanDescription, coverLetterText)}
+              {renderLinkifiedText(cleanDescription, vacancy.id, coverLetterText)}
             </p>
             {shouldTruncate && !isExpanded && <div className="fade-overlay"></div>}
           </div>
@@ -341,7 +360,7 @@ function App() {
                       key={`ql-url-${i}`} 
                       className="btn btn-secondary" 
                       style={{ padding: '6px 10px', fontSize: '0.75rem', width: 'auto', flex: 'none', background: 'rgba(10, 132, 255, 0.1)', borderColor: 'rgba(10, 132, 255, 0.2)', color: '#0a84ff' }}
-                      onClick={() => openLink(url, coverLetterText)}
+                      onClick={() => openLink(url, vacancy.id, coverLetterText)}
                     >
                       🔗 {label}
                     </button>
@@ -352,14 +371,14 @@ function App() {
                     key={`ql-email-${i}`} 
                     className="btn btn-secondary" 
                     style={{ padding: '6px 10px', fontSize: '0.75rem', width: 'auto', flex: 'none', background: 'rgba(48, 209, 88, 0.1)', borderColor: 'rgba(48, 209, 88, 0.2)', color: '#30d158' }}
-                    onClick={() => openLink(`mailto:${email}`, coverLetterText)}
+                    onClick={() => openLink(`mailto:${email}`, vacancy.id, coverLetterText)}
                   >
                     📧 {email}
                   </button>
                 ))}
                 {links.tgs.map((username, i) => {
                   const cleanUser = username.replace('@', '');
-                  // Skip if it matches the current channel name (already has main buttons)
+                  // Skip if it matches the current channel name
                   const channelName = vacancy.company.replace("Telegram Channel @", "").trim().toLowerCase();
                   if (cleanUser.toLowerCase() === channelName) return null;
                   
@@ -368,7 +387,7 @@ function App() {
                       key={`ql-tg-${i}`} 
                       className="btn btn-secondary" 
                       style={{ padding: '6px 10px', fontSize: '0.75rem', width: 'auto', flex: 'none', background: 'rgba(10, 132, 255, 0.1)', borderColor: 'rgba(10, 132, 255, 0.2)', color: '#0a84ff' }}
-                      onClick={() => openLink(`https://t.me/${cleanUser}`, coverLetterText)}
+                      onClick={() => openLink(`https://t.me/${cleanUser}`, vacancy.id, coverLetterText)}
                     >
                       💬 {username}
                     </button>
@@ -400,6 +419,17 @@ function App() {
           <div className="card-actions" style={{ flexDirection: 'column', gap: '8px' }}>
             {/* Action Buttons Row */}
             <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              {activeTab === 'feed' && (
+                <button 
+                  className="btn btn-danger" 
+                  style={{ flex: 0.25, minWidth: '40px', padding: '10px 0' }} 
+                  onClick={() => updateStatus(vacancy.id, 'skipped')}
+                  title="Скрыть вакансию"
+                >
+                  <X size={16} />
+                </button>
+              )}
+              
               <button 
                 className="btn btn-secondary" 
                 style={{ flex: 1 }}
@@ -411,37 +441,25 @@ function App() {
               
               {isTg ? (
                 tgContact ? (
-                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => openLink(`https://t.me/${tgContact.replace('@', '')}`, coverLetterText)}>
+                  <button className="btn btn-primary" style={{ flex: 1.4 }} onClick={() => openLink(`https://t.me/${tgContact.replace('@', '')}`, vacancy.id, coverLetterText)}>
                     <ExternalLink size={16} /> Откликнуться {tgContact}
                   </button>
                 ) : (
-                  <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => openLink(vacancy.url, coverLetterText)}>
+                  <button className="btn btn-primary" style={{ flex: 1.4 }} onClick={() => openLink(vacancy.url, vacancy.id, coverLetterText)}>
                     <ExternalLink size={16} /> Пост в Telegram
                   </button>
                 )
               ) : (
-                <button className="btn btn-primary" style={{ flex: 1.2 }} onClick={() => openLink(vacancy.url, coverLetterText)}>
+                <button className="btn btn-primary" style={{ flex: 1.4 }} onClick={() => openLink(vacancy.url, vacancy.id, coverLetterText)}>
                   <ExternalLink size={16} /> Откликнуться на HH
                 </button>
               )}
             </div>
 
-            {/* Skip/Save Row (Only in Feed tab) */}
-            {activeTab === 'feed' && (
-              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => updateStatus(vacancy.id, 'skipped')}>
-                  <X size={16} /> Скрыть
-                </button>
-                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => updateStatus(vacancy.id, 'saved')}>
-                  <Bookmark size={16} /> В избранное
-                </button>
-              </div>
-            )}
-            
-            {/* Delete button (Only in Saved tab) */}
-            {activeTab === 'saved' && (
-              <button className="btn btn-danger" style={{ width: '100%' }} onClick={() => updateStatus(vacancy.id, 'skipped')}>
-                Удалить из сохраненных
+            {/* Delete button (Only in Applied tab) */}
+            {activeTab === 'applied' && (
+              <button className="btn btn-danger" style={{ width: '100%', padding: '8px 12px' }} onClick={() => updateStatus(vacancy.id, 'skipped')}>
+                Удалить из откликов
               </button>
             )}
           </div>
@@ -450,57 +468,139 @@ function App() {
     );
   };
 
+  // Filter vacancies locally based on search query and stack/source filters
+  const filteredVacancies = vacancies.filter(v => {
+    const textMatch = 
+      v.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      v.company.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      v.description.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    if (!textMatch) return false;
+    
+    const descLower = v.description.toLowerCase();
+    const titleLower = v.title.toLowerCase();
+    const techLower = (v.tech_stack || "").toLowerCase();
+    
+    if (filterStack === 'csharp') {
+      const isCs = descLower.includes('c#') || descLower.includes('dotnet') || descLower.includes('.net') || titleLower.includes('c#') || techLower.includes('c#');
+      const isReact = descLower.includes('react') || titleLower.includes('react') || techLower.includes('react');
+      return isCs && !isReact;
+    }
+    if (filterStack === 'react') {
+      const isCs = descLower.includes('c#') || descLower.includes('dotnet') || descLower.includes('.net') || titleLower.includes('c#') || techLower.includes('c#');
+      const isReact = descLower.includes('react') || titleLower.includes('react') || techLower.includes('react');
+      return isReact && !isCs;
+    }
+    if (filterStack === 'fullstack') {
+      const isCs = descLower.includes('c#') || descLower.includes('dotnet') || descLower.includes('.net') || titleLower.includes('c#') || techLower.includes('c#');
+      const isReact = descLower.includes('react') || titleLower.includes('react') || techLower.includes('react');
+      return isCs && isReact;
+    }
+    if (filterStack === 'hh') {
+      return !v.source_id.startsWith('tg_');
+    }
+    if (filterStack === 'tg') {
+      return v.source_id.startsWith('tg_');
+    }
+    return true;
+  });
+
   return (
     <div className="app-container">
       <header className="header">
-        <h1>{activeTab === 'feed' ? "Лента вакансий" : activeTab === 'saved' ? "Избранное" : "Настройки"}</h1>
+        <h1>{activeTab === 'feed' ? "Лента вакансий" : activeTab === 'applied' ? "Мои отклики" : "Настройки"}</h1>
       </header>
 
       <main className="main-content">
         {activeTab === 'settings' ? (
-          <div style={{ background: '#1c1c1e', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
-            <h2 style={{ fontSize: '1.05rem', marginBottom: '8px', fontWeight: '600' }}>Резюме и ссылки для ИИ</h2>
-            <p style={{ fontSize: '0.8rem', color: '#aeaeb2', marginBottom: '16px', lineHeight: '1.4' }}>
-              Опиши свои навыки, проекты и опыт. Вставь ссылки на GitHub и резюме. На основе этого текста ИИ будет генерировать письма рекрутерам.
-            </p>
-            <textarea
-              style={{
-                width: '100%',
-                height: '240px',
-                background: '#121212',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                color: '#ffffff',
-                padding: '12px',
-                fontSize: '0.88rem',
-                fontFamily: 'inherit',
-                resize: 'none',
-                outline: 'none',
-                marginBottom: '16px',
-                lineHeight: '1.4'
-              }}
-              value={userCv}
-              onChange={(e) => setUserCv(e.target.value)}
-              placeholder="Пример: Меня зовут Владислав. Мне 18 лет, пишу код с 14 лет. Мой стек: C#, ASP.NET, Entity Framework, React, TypeScript. Мой GitHub: github.com/D4cLoves..."
-            />
-            <button 
-              className="btn btn-primary" 
-              disabled={cvSaving}
-              onClick={saveSettings}
-              style={{ width: '100%', padding: '12px' }}
-            >
-              {cvSaving ? 'Сохранение...' : 'Сохранить настройки'}
-            </button>
+          <div>
+            {/* Career stats grid */}
+            <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+              <div className="stat-card">
+                <div className="stat-label">Всего найдено</div>
+                <div className="stat-value">{stats.total}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label" style={{ color: '#30d158' }}>Откликов отправлено</div>
+                <div className="stat-value" style={{ color: '#30d158' }}>{stats.applied}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label" style={{ color: '#ffd60a' }}>Новых в ленте</div>
+                <div className="stat-value" style={{ color: '#ffd60a' }}>{stats.new}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label" style={{ color: '#ff453a' }}>Скрытых</div>
+                <div className="stat-value" style={{ color: '#ff453a' }}>{stats.skipped}</div>
+              </div>
+            </div>
+
+            <div style={{ background: '#1c1c1e', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
+              <h2 style={{ fontSize: '1.05rem', marginBottom: '8px', fontWeight: '600' }}>Резюме и ссылки для ИИ</h2>
+              <p style={{ fontSize: '0.8rem', color: '#aeaeb2', marginBottom: '16px', lineHeight: '1.4' }}>
+                Опиши свои навыки, проекты и опыт. Вставь ссылки на GitHub и резюме. На основе этого текста ИИ будет генерировать письма рекрутерам.
+              </p>
+              <textarea
+                style={{
+                  width: '100%',
+                  height: '240px',
+                  background: '#121212',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  padding: '12px',
+                  fontSize: '0.88rem',
+                  fontFamily: 'inherit',
+                  resize: 'none',
+                  outline: 'none',
+                  marginBottom: '16px',
+                  lineHeight: '1.4'
+                }}
+                value={userCv}
+                onChange={(e) => setUserCv(e.target.value)}
+                placeholder="Пример: Меня зовут Владислав. Мне 18 лет, пишу код с 14 лет. Мой стек: C#, ASP.NET, Entity Framework, React, TypeScript. Мой GitHub: github.com/D4cLoves..."
+              />
+              <button 
+                className="btn btn-primary" 
+                disabled={cvSaving}
+                onClick={saveSettings}
+                style={{ width: '100%', padding: '12px' }}
+              >
+                {cvSaving ? 'Сохранение...' : 'Сохранить настройки'}
+              </button>
+            </div>
           </div>
-        ) : loading ? (
-          <div style={{ textAlign: 'center', marginTop: '50px', color: '#aeaeb2', fontSize: '0.9rem' }}>
-            Поиск вакансий...
-          </div>
-        ) : vacancies.length > 0 ? (
-          vacancies.map(renderVacancyCard)
         ) : (
-          <div style={{ textAlign: 'center', marginTop: '50px', color: '#aeaeb2', fontSize: '0.9rem' }}>
-            Нет новых вакансий по фильтрам.
+          <div>
+            {/* Search and Filters container */}
+            <div className="search-filter-container">
+              <input 
+                type="text" 
+                className="search-input" 
+                placeholder="Поиск по названию, компании..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <div className="filter-chips">
+                <button className={`chip ${filterStack === 'all' ? 'active' : ''}`} onClick={() => setFilterStack('all')}>Все</button>
+                <button className={`chip ${filterStack === 'csharp' ? 'active' : ''}`} onClick={() => setFilterStack('csharp')}>C#</button>
+                <button className={`chip ${filterStack === 'react' ? 'active' : ''}`} onClick={() => setFilterStack('react')}>React</button>
+                <button className={`chip ${filterStack === 'fullstack' ? 'active' : ''}`} onClick={() => setFilterStack('fullstack')}>Fullstack</button>
+                <button className={`chip ${filterStack === 'hh' ? 'active' : ''}`} onClick={() => setFilterStack('hh')}>HH.ru</button>
+                <button className={`chip ${filterStack === 'tg' ? 'active' : ''}`} onClick={() => setFilterStack('tg')}>Telegram</button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', marginTop: '50px', color: '#aeaeb2', fontSize: '0.9rem' }}>
+                Поиск вакансий...
+              </div>
+            ) : filteredVacancies.length > 0 ? (
+              filteredVacancies.map(renderVacancyCard)
+            ) : (
+              <div style={{ textAlign: 'center', marginTop: '50px', color: '#aeaeb2', fontSize: '0.9rem' }}>
+                Нет подходящих вакансий.
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -516,12 +616,12 @@ function App() {
           <span>Лента</span>
         </button>
         <button 
-          className={`nav-item ${activeTab === 'saved' ? 'active' : ''}`}
-          onClick={() => setActiveTab('saved')}
+          className={`nav-item ${activeTab === 'applied' ? 'active' : ''}`}
+          onClick={() => setActiveTab('applied')}
           style={{ background: 'transparent' }}
         >
-          <Bookmark />
-          <span>Избранное</span>
+          <Briefcase />
+          <span>Отклики</span>
         </button>
         <button 
           className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}

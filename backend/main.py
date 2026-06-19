@@ -27,17 +27,27 @@ async def lifespan(app: FastAPI):
         db = SessionLocal()
         try:
             logger.info("Running scheduled fetches...")
+            count_hh = 0
+            count_tg = 0
             # Fetch HH.ru
             try:
-                await fetch_hh_vacancies(db)
+                count_hh = await fetch_hh_vacancies(db)
             except Exception as e:
                 logger.error(f"HH.ru fetch error: {e}")
                 
             # Fetch Telegram
             try:
-                await fetch_telegram_vacancies(db)
+                count_tg = await fetch_telegram_vacancies(db)
             except Exception as e:
                 logger.error(f"Telegram fetch error: {e}")
+                
+            total_new = count_hh + count_tg
+            if total_new > 0:
+                chat_setting = db.query(models.Settings).filter(models.Settings.key == "chat_id").first()
+                if chat_setting and chat_setting.value:
+                    from bot import send_telegram_notification
+                    text = f"🤖 Найдено {total_new} новых подходящих вакансий! ({count_hh} с HH.ru, {count_tg} из Telegram)\n🚀 Откройте FindJobBot, чтобы сгенерировать сопроводительные письма!"
+                    await send_telegram_notification(chat_setting.value, text)
         finally:
             db.close()
 
@@ -124,6 +134,19 @@ def update_settings(settings: SettingsUpdate, db: Session = Depends(get_db)):
         db.add(cv_setting)
     db.commit()
     return {"message": "Settings updated"}
+
+@app.get("/api/stats")
+def get_stats(db: Session = Depends(get_db)):
+    total = db.query(models.Vacancy).count()
+    new_count = db.query(models.Vacancy).filter(models.Vacancy.status == "new").count()
+    applied_count = db.query(models.Vacancy).filter(models.Vacancy.status == "applied").count()
+    skipped_count = db.query(models.Vacancy).filter(models.Vacancy.status == "skipped").count()
+    return {
+        "total": total,
+        "new": new_count,
+        "applied": applied_count,
+        "skipped": skipped_count
+    }
 
 @app.post("/api/vacancies/{vacancy_id}/generate-cover-letter")
 async def api_generate_cover_letter(vacancy_id: int, db: Session = Depends(get_db)):
