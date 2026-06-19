@@ -143,6 +143,10 @@ function App() {
     }
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
+      if (url.startsWith('mailto:')) {
+        window.location.href = url;
+        return;
+      }
       let targetUrl = url;
       try {
         if (/https?:\/\/t\.me\//i.test(url)) {
@@ -234,11 +238,10 @@ function App() {
         elements.push(
           <a 
             key={`email-${match.index}`}
-            href={`mailto:${matchText}`}
-            onClick={() => {
-              if (coverLetterText) {
-                navigator.clipboard.writeText(coverLetterText);
-              }
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              openLink(`mailto:${matchText}`, coverLetterText);
             }}
             style={{ color: '#0a84ff', textDecoration: 'underline', wordBreak: 'break-all' }}
           >
