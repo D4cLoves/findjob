@@ -143,10 +143,29 @@ function App() {
     }
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
-      if (url.startsWith('https://t.me/') || url.startsWith('tg://')) {
-        tg.openTelegramLink(url);
+      let targetUrl = url;
+      try {
+        if (/https?:\/\/t\.me\//i.test(url)) {
+          const parsedUrl = new URL(url);
+          const path = parsedUrl.pathname.replace(/^\//, '').split('/');
+          if (path.length === 1 && path[0] && path[0] !== 'share' && path[0] !== 'joinchat') {
+            const start = parsedUrl.searchParams.get('start');
+            targetUrl = `tg://resolve?domain=${path[0]}`;
+            if (start) {
+              targetUrl += `&start=${start}`;
+            }
+          } else if (path.length === 2 && path[0] && path[1] && /^\d+$/.test(path[1])) {
+            targetUrl = `tg://resolve?domain=${path[0]}&post=${path[1]}`;
+          }
+        }
+      } catch (e) {
+        // Fallback to original url if parsing fails
+      }
+
+      if (targetUrl.startsWith('tg://') || targetUrl.startsWith('https://t.me/')) {
+        tg.openTelegramLink(targetUrl);
       } else {
-        tg.openLink(url);
+        tg.openLink(targetUrl);
       }
     } else {
       window.open(url, '_blank');
