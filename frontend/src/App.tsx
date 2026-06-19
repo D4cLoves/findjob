@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Settings, ExternalLink, ThumbsUp, X } from 'lucide-react';
+import { Briefcase, Settings, ExternalLink, ThumbsUp, X, Shuffle } from 'lucide-react';
 import './App.css';
 
 // Type definitions
@@ -53,12 +53,24 @@ function App() {
     }
   }, [activeTab]);
 
+  const shuffleArray = (array: any[]) => {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
   const fetchVacancies = async () => {
     setLoading(true);
     try {
       const status = activeTab === 'feed' ? 'new' : 'applied';
       const response = await fetch(`${API_URL}/vacancies?status=${status}`);
-      const data = await response.json();
+      let data = await response.json();
+      if (activeTab === 'feed') {
+        data = shuffleArray(data);
+      }
       setVacancies(data);
     } catch (error) {
       console.error("Error fetching vacancies:", error);
@@ -166,26 +178,16 @@ function App() {
         window.location.href = url;
         return;
       }
+      
       let targetUrl = url;
-      try {
-        if (/https?:\/\/t\.me\//i.test(url)) {
-          const parsedUrl = new URL(url);
-          const path = parsedUrl.pathname.replace(/^\//, '').split('/');
-          if (path.length === 1 && path[0] && path[0] !== 'share' && path[0] !== 'joinchat') {
-            const start = parsedUrl.searchParams.get('start');
-            targetUrl = `tg://resolve?domain=${path[0]}`;
-            if (start) {
-              targetUrl += `&start=${start}`;
-            }
-          } else if (path.length === 2 && path[0] && path[1] && /^\d+$/.test(path[1])) {
-            targetUrl = `tg://resolve?domain=${path[0]}&post=${path[1]}`;
-          }
-        }
-      } catch (e) {
-        // Fallback to original url if parsing fails
+      // If we have a tg:// resolve link, transform it to a standard https://t.me/ link
+      // because tg.openTelegramLink only supports the https://t.me/ scheme inside the SDK.
+      if (targetUrl.startsWith('tg://resolve?domain=')) {
+        const domain = targetUrl.replace('tg://resolve?domain=', '');
+        targetUrl = `https://t.me/${domain}`;
       }
-
-      if (targetUrl.startsWith('tg://') || targetUrl.startsWith('https://t.me/')) {
+      
+      if (targetUrl.startsWith('https://t.me/')) {
         tg.openTelegramLink(targetUrl);
       } else {
         tg.openLink(targetUrl);
@@ -573,13 +575,26 @@ function App() {
           <div>
             {/* Search and Filters container */}
             <div className="search-filter-container">
-              <input 
-                type="text" 
-                className="search-input" 
-                placeholder="Поиск по названию, компании..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <input 
+                  type="text" 
+                  className="search-input" 
+                  placeholder="Поиск по названию, компании..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                {activeTab === 'feed' && (
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ width: '40px', flex: 'none', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)' }}
+                    onClick={() => setVacancies(prev => shuffleArray(prev))}
+                    title="Перемешать ленту"
+                  >
+                    <Shuffle size={16} />
+                  </button>
+                )}
+              </div>
               <div className="filter-chips">
                 <button className={`chip ${filterStack === 'all' ? 'active' : ''}`} onClick={() => setFilterStack('all')}>Все</button>
                 <button className={`chip ${filterStack === 'csharp' ? 'active' : ''}`} onClick={() => setFilterStack('csharp')}>C#</button>
