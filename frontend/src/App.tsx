@@ -365,6 +365,8 @@ function App() {
               </span>
             )}
           </div>
+          {/* Spacer to push title exactly to the center */}
+          <div className="window-dots-spacer" style={{ width: '52px', flexShrink: 0 }}></div>
         </div>
 
         <div className="card-body">
