@@ -9,15 +9,49 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # User-Agent is required by HH.ru API
+HH_CLIENT_ID = os.getenv("HH_CLIENT_ID")
+HH_CLIENT_SECRET = os.getenv("HH_CLIENT_SECRET")
 HH_ACCESS_TOKEN = os.getenv("HH_ACCESS_TOKEN")
 
-HEADERS = {
-    "User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)",
-    "HH-User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)"
-}
+_cached_token = None
 
-if HH_ACCESS_TOKEN:
-    HEADERS["Authorization"] = f"Bearer {HH_ACCESS_TOKEN}"
+async def get_hh_headers(client: httpx.AsyncClient) -> dict:
+    global _cached_token
+    headers = {
+        "User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)",
+        "HH-User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)"
+    }
+    if HH_ACCESS_TOKEN:
+        headers["Authorization"] = f"Bearer {HH_ACCESS_TOKEN}"
+        return headers
+
+    if HH_CLIENT_ID and HH_CLIENT_SECRET:
+        if _cached_token:
+            headers["Authorization"] = f"Bearer {_cached_token}"
+            return headers
+        logger.info("Fetching access token using client credentials from hh.ru...")
+        try:
+            token_resp = await client.post(
+                "https://api.hh.ru/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": HH_CLIENT_ID,
+                    "client_secret": HH_CLIENT_SECRET
+                },
+                headers=headers
+            )
+            token_resp.raise_for_status()
+            token_data = token_resp.json()
+            _cached_token = token_data.get("access_token")
+            if _cached_token:
+                logger.info("Successfully obtained client credentials access token.")
+                headers["Authorization"] = f"Bearer {_cached_token}"
+                return headers
+            else:
+                logger.error("Token response did not contain access_token.")
+        except Exception as e:
+            logger.error(f"Failed to fetch client credentials token: {e}")
+    return headers
 
 async def fetch_hh_vacancies(db: Session):
     url = "https://api.hh.ru/vacancies"
@@ -29,6 +63,7 @@ async def fetch_hh_vacancies(db: Session):
     
     new_vacancies_count = 0
     async with httpx.AsyncClient() as client:
+        headers = await get_hh_headers(client)
         for text in queries:
             for experience in exp_levels:
                 params = {
@@ -40,7 +75,7 @@ async def fetch_hh_vacancies(db: Session):
                 }
                 logger.info(f"Fetching HH.ru: Query='{text}', Exp='{experience}'")
                 try:
-                    response = await client.get(url, params=params, headers=HEADERS)
+                    response = await client.get(url, params=params, headers=headers)
                     response.raise_for_status()
                     data = response.json()
                     
@@ -51,7 +86,7 @@ async def fetch_hh_vacancies(db: Session):
                         existing = db.query(models.Vacancy).filter(models.Vacancy.source_id == source_id).first()
                         if not existing:
                             # Fetch detailed description
-                            detail_resp = await client.get(item["url"], headers=HEADERS)
+                            detail_resp = await client.get(item["url"], headers=headers)
                             description = ""
                             if detail_resp.status_code == 200:
                                 description = detail_resp.json().get("description", "")
