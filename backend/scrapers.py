@@ -62,6 +62,8 @@ async def fetch_hh_vacancies(db: Session):
     exp_levels = ["noExperience", "between1And3"]
     
     new_vacancies_count = 0
+    added_source_ids = set()
+    
     async with httpx.AsyncClient() as client:
         headers = await get_hh_headers(client)
         for text in queries:
@@ -81,8 +83,10 @@ async def fetch_hh_vacancies(db: Session):
                     
                     for item in data.get("items", []):
                         source_id = f"hh_{item['id']}"
+                        if source_id in added_source_ids:
+                            continue
                         
-                        # Check if already exists
+                        # Check if already exists in DB
                         existing = db.query(models.Vacancy).filter(models.Vacancy.source_id == source_id).first()
                         if not existing:
                             # Fetch detailed description
@@ -107,6 +111,7 @@ async def fetch_hh_vacancies(db: Session):
                                 status="new"
                             )
                             db.add(new_vac)
+                            added_source_ids.add(source_id)
                             new_vacancies_count += 1
                 except httpx.HTTPStatusError as e:
                     error_detail = f"HTTP Error {e.response.status_code}: {e.response.text}"
