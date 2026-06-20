@@ -119,6 +119,42 @@ from pydantic import BaseModel
 class SettingsUpdate(BaseModel):
     user_cv: str
 
+class ChatIdUpdate(BaseModel):
+    chat_id: str
+
+@app.post("/api/save-chat-id")
+def save_chat_id(data: ChatIdUpdate, db: Session = Depends(get_db)):
+    chat_setting = db.query(models.Settings).filter(models.Settings.key == "chat_id").first()
+    if chat_setting:
+        chat_setting.value = data.chat_id
+    else:
+        chat_setting = models.Settings(key="chat_id", value=data.chat_id)
+        db.add(chat_setting)
+    db.commit()
+    return {"message": "Chat ID saved successfully"}
+
+@app.post("/api/fetch")
+async def manual_fetch(db: Session = Depends(get_db)):
+    logger.info("Manual fetch triggered...")
+    count_hh = 0
+    count_tg = 0
+    try:
+        count_hh = await fetch_hh_vacancies(db)
+    except Exception as e:
+        logger.error(f"HH.ru fetch error: {e}")
+        
+    try:
+        count_tg = await fetch_telegram_vacancies(db)
+    except Exception as e:
+        logger.error(f"Telegram fetch error: {e}")
+        
+    return {
+        "status": "success",
+        "hh_added": count_hh,
+        "tg_added": count_tg,
+        "total_added": count_hh + count_tg
+    }
+
 @app.get("/api/settings")
 def get_settings(db: Session = Depends(get_db)):
     cv_setting = db.query(models.Settings).filter(models.Settings.key == "user_cv").first()

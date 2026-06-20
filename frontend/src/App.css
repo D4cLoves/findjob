@@ -334,40 +334,220 @@
   box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
 }
 
-.filter-chips {
+/* Segmented Control */
+.segmented-control {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none; /* Firefox */
-}
-
-.filter-chips::-webkit-scrollbar {
-  display: none; /* Safari and Chrome */
-}
-
-.chip {
-  flex: none;
-  background: #2c2c2e;
+  background: #1c1c1e;
+  border-radius: 8px;
+  padding: 2px;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  color: #aeaea2;
-  padding: 6px 12px;
-  border-radius: 14px;
-  font-size: 0.78rem;
+}
+
+.segment-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #aeaeb2;
+  font-size: 0.8rem;
   font-weight: 500;
+  padding: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
+  outline: none;
 }
 
-.chip:hover {
+.segment-btn:hover {
+  color: #ffffff;
+}
+
+.segment-btn.active {
+  background: #2c2c2e;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Advanced Filters Panel */
+.advanced-filters-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-label {
+  font-size: 0.75rem;
+  color: #8e8e93;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.filter-options-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  background: #2c2c2e;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #aeaeb2;
+  padding: 6px 12px;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-chip:hover {
   background: #3a3a3c;
   color: #ffffff;
 }
 
-.chip.active {
-  background: #007aff;
-  color: #ffffff;
-  border-color: #007aff;
+.filter-chip.active {
+  background: rgba(10, 132, 255, 0.15);
+  color: #0a84ff;
+  border-color: #0a84ff;
+}
+
+/* Switch / Toggle Button */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #3a3a3c;
+  transition: .2s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #30d158; /* Apple green */
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* HH.ru vs Telegram themes for vacancy cards */
+.vacancy-card.tg-themed {
+  border-color: rgba(100, 210, 255, 0.15);
+}
+
+.vacancy-card.tg-themed:hover {
+  border-color: rgba(100, 210, 255, 0.3);
+  box-shadow: 0 15px 40px rgba(0, 136, 204, 0.15);
+}
+
+.vacancy-card.tg-themed .window-titlebar {
+  background: linear-gradient(to right, rgba(0, 136, 204, 0.08), rgba(28, 28, 30, 0.9)) !important;
+  border-bottom: 1px solid rgba(100, 210, 255, 0.15);
+}
+
+.vacancy-card.hh-themed {
+  border-color: rgba(255, 69, 58, 0.15);
+}
+
+.vacancy-card.hh-themed:hover {
+  border-color: rgba(255, 69, 58, 0.3);
+  box-shadow: 0 15px 40px rgba(255, 69, 58, 0.1);
+}
+
+.vacancy-card.hh-themed .window-titlebar {
+  background: linear-gradient(to right, rgba(255, 69, 58, 0.08), rgba(28, 28, 30, 0.9)) !important;
+  border-bottom: 1px solid rgba(255, 69, 58, 0.15);
+}
+
+/* Fullscreen Loader Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.loader-box {
+  background: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 24px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.btn-secondary.active {
+  background: rgba(10, 132, 255, 0.15);
+  border-color: rgba(10, 132, 255, 0.3);
 }
 
 /* Statistics Grid and Cards */

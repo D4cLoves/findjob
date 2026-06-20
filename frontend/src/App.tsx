@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Settings, ExternalLink, ThumbsUp, X, Shuffle } from 'lucide-react';
+import { Briefcase, Settings, ExternalLink, ThumbsUp, X, Shuffle, RotateCw, SlidersHorizontal } from 'lucide-react';
 import './App.css';
 
 // Type definitions
@@ -28,19 +28,36 @@ function App() {
   const [letters, setLetters] = useState<Record<number, string>>({});
   const [expandedVacancies, setExpandedVacancies] = useState<Record<number, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStack, setFilterStack] = useState('all');
+  const [filterSource, setFilterSource] = useState('all');
+  const [selectedStacks, setSelectedStacks] = useState<string[]>([]);
+  const [selectedExperiences, setSelectedExperiences] = useState<string[]>([]);
+  const [onlyWithSalary, setOnlyWithSalary] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({ total: 0, new: 0, applied: 0, skipped: 0 });
 
   const toggleExpand = (id: number) => {
     setExpandedVacancies(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Initialize Telegram WebApp
+  // Initialize Telegram WebApp & auto-save chat ID
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
+      
+      const userId = tg.initDataUnsafe?.user?.id;
+      if (userId) {
+        fetch(`${API_URL}/save-chat-id`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: String(userId) })
+        })
+        .then(res => res.json())
+        .then(data => console.log("Registered chat_id:", data))
+        .catch(err => console.error("Failed to register chat_id:", err));
+      }
     }
   }, []);
 
@@ -76,6 +93,25 @@ function App() {
       console.error("Error fetching vacancies:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetch(`${API_URL}/fetch`, { method: 'POST' });
+      const data = await response.json();
+      if (data.status === 'success') {
+        await fetchVacancies();
+        alert(`Обновление завершено!\nНайдено новых вакансий:\n- HH.ru: +${data.hh_added}\n- Telegram: +${data.tg_added}`);
+      } else {
+        alert("Не удалось запустить обновление.");
+      }
+    } catch (error) {
+      console.error("Error running manual fetch:", error);
+      alert("Ошибка при обновлении вакансий.");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -298,6 +334,7 @@ function App() {
 
   const renderVacancyCard = (vacancy: Vacancy) => {
     const isTg = vacancy.source_id.startsWith("tg_");
+    const cardClass = isTg ? "vacancy-card tg-themed" : "vacancy-card hh-themed";
     const tgContact = isTg ? getTelegramContact(vacancy.description, vacancy.company) : null;
     const coverLetterText = letters[vacancy.id] || vacancy.cover_letter;
     const isExpanded = !!expandedVacancies[vacancy.id];
@@ -309,7 +346,7 @@ function App() {
     const hasQuickLinks = links.urls.length > 0 || links.emails.length > 0 || links.tgs.length > 0;
     
     return (
-      <div className="vacancy-card" key={vacancy.id}>
+      <div className={cardClass} key={vacancy.id}>
         {/* macOS Style Titlebar */}
         <div className="window-titlebar">
           <div className="window-dots">
@@ -317,7 +354,17 @@ function App() {
             <span className="dot dot-yellow"></span>
             <span className="dot dot-green"></span>
           </div>
-          <div className="window-title">{isTg ? "Telegram Vacancy" : "HH.ru Vacancy"}</div>
+          <div className="window-title">
+            {isTg ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64d2ff' }}>
+                💬 Telegram Канал
+              </span>
+            ) : (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ff453a' }}>
+                🔴 HeadHunter
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="card-body">
@@ -470,7 +517,7 @@ function App() {
     );
   };
 
-  // Filter vacancies locally based on search query and stack/source filters
+  // Filter vacancies locally based on search query, source, stack, experience, and salary filters
   const filteredVacancies = vacancies.filter(v => {
     const textMatch = 
       v.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -479,31 +526,52 @@ function App() {
       
     if (!textMatch) return false;
     
+    // 1. Source Filter
+    const isTg = v.source_id.startsWith('tg_');
+    if (filterSource === 'hh' && isTg) return false;
+    if (filterSource === 'tg' && !isTg) return false;
+    
     const descLower = v.description.toLowerCase();
     const titleLower = v.title.toLowerCase();
     const techLower = (v.tech_stack || "").toLowerCase();
     
-    if (filterStack === 'csharp') {
-      const isCs = descLower.includes('c#') || descLower.includes('dotnet') || descLower.includes('.net') || titleLower.includes('c#') || techLower.includes('c#');
-      const isReact = descLower.includes('react') || titleLower.includes('react') || techLower.includes('react');
-      return isCs && !isReact;
+    // 2. Multi-select Stack Filter
+    if (selectedStacks.length > 0) {
+      const matchesStack = selectedStacks.some(stack => {
+        const s = stack.toLowerCase();
+        if (s === 'csharp') {
+          return descLower.includes('c#') || descLower.includes('dotnet') || descLower.includes('.net') || titleLower.includes('c#') || techLower.includes('c#');
+        }
+        if (s === 'react') {
+          return descLower.includes('react') || titleLower.includes('react') || techLower.includes('react');
+        }
+        if (s === 'asp.net') {
+          return descLower.includes('asp.net') || titleLower.includes('asp.net') || techLower.includes('asp.net');
+        }
+        return false;
+      });
+      if (!matchesStack) return false;
     }
-    if (filterStack === 'react') {
-      const isCs = descLower.includes('c#') || descLower.includes('dotnet') || descLower.includes('.net') || titleLower.includes('c#') || techLower.includes('c#');
-      const isReact = descLower.includes('react') || titleLower.includes('react') || techLower.includes('react');
-      return isReact && !isCs;
+    
+    // 3. Experience Filter
+    if (selectedExperiences.length > 0) {
+      const isJunior = descLower.includes('без опыта') || descLower.includes('junior') || descLower.includes('стажер') || descLower.includes('intern') || descLower.includes('noexperience');
+      const isMiddle = descLower.includes('1-3 года') || descLower.includes('middle') || descLower.includes('between1and3') || descLower.includes('опыт от 1 года') || descLower.includes('опыт от 3') || titleLower.includes('middle');
+      
+      const matchesExp = selectedExperiences.some(exp => {
+        if (exp === 'noExperience') return isJunior;
+        if (exp === 'between1And3') return isMiddle;
+        return false;
+      });
+      if (!matchesExp) return false;
     }
-    if (filterStack === 'fullstack') {
-      const isCs = descLower.includes('c#') || descLower.includes('dotnet') || descLower.includes('.net') || titleLower.includes('c#') || techLower.includes('c#');
-      const isReact = descLower.includes('react') || titleLower.includes('react') || techLower.includes('react');
-      return isCs && isReact;
+    
+    // 4. Salary Filter
+    if (onlyWithSalary) {
+      const noSalary = !v.salary || v.salary.toLowerCase().includes("не указана") || v.salary.trim() === "";
+      if (noSalary) return false;
     }
-    if (filterStack === 'hh') {
-      return !v.source_id.startsWith('tg_');
-    }
-    if (filterStack === 'tg') {
-      return v.source_id.startsWith('tg_');
-    }
+    
     return true;
   });
 
@@ -573,9 +641,44 @@ function App() {
           </div>
         ) : (
           <div>
+            {/* Fullscreen Loading Overlay for Refreshing */}
+            {refreshing && (
+              <div className="loading-overlay">
+                <div className="loader-box">
+                  <RotateCw size={36} className="spin-animation" style={{ color: '#0a84ff', marginBottom: '16px' }} />
+                  <div style={{ fontSize: '1rem', fontWeight: '600', color: '#ffffff', marginBottom: '8px' }}>Ищем новые вакансии</div>
+                  <div style={{ fontSize: '0.8rem', color: '#aeaeb2', textAlign: 'center', maxWidth: '240px', lineHeight: '1.4' }}>
+                    Парсим свежие вакансии с HH.ru и Telegram-каналов. Пожалуйста, подождите...
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Segmented Control for Source */}
+            <div className="segmented-control" style={{ marginBottom: '16px' }}>
+              <button 
+                className={`segment-btn ${filterSource === 'all' ? 'active' : ''}`} 
+                onClick={() => setFilterSource('all')}
+              >
+                Все ({vacancies.length})
+              </button>
+              <button 
+                className={`segment-btn ${filterSource === 'hh' ? 'active' : ''}`} 
+                onClick={() => setFilterSource('hh')}
+              >
+                HH.ru ({vacancies.filter(v => !v.source_id.startsWith('tg_')).length})
+              </button>
+              <button 
+                className={`segment-btn ${filterSource === 'tg' ? 'active' : ''}`} 
+                onClick={() => setFilterSource('tg')}
+              >
+                Telegram ({vacancies.filter(v => v.source_id.startsWith('tg_')).length})
+              </button>
+            </div>
+
             {/* Search and Filters container */}
             <div className="search-filter-container">
-              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', alignItems: 'center' }}>
                 <input 
                   type="text" 
                   className="search-input" 
@@ -584,10 +687,32 @@ function App() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{ flex: 1 }}
                 />
+                
                 {activeTab === 'feed' && (
                   <button 
                     className="btn btn-secondary" 
-                    style={{ width: '40px', flex: 'none', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)' }}
+                    style={{ width: '40px', height: '40px', flex: 'none', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)' }}
+                    onClick={handleManualRefresh}
+                    disabled={refreshing}
+                    title="Обновить вакансии"
+                  >
+                    <RotateCw size={16} className={refreshing ? "spin-animation" : ""} />
+                  </button>
+                )}
+
+                <button 
+                  className={`btn btn-secondary ${showFilters ? 'active' : ''}`} 
+                  style={{ width: '40px', height: '40px', flex: 'none', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)' }}
+                  onClick={() => setShowFilters(prev => !prev)}
+                  title="Фильтры"
+                >
+                  <SlidersHorizontal size={16} style={{ color: showFilters ? '#0a84ff' : 'inherit' }} />
+                </button>
+
+                {activeTab === 'feed' && (
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ width: '40px', height: '40px', flex: 'none', padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid rgba(255,255,255,0.08)' }}
                     onClick={() => setVacancies(prev => shuffleArray(prev))}
                     title="Перемешать ленту"
                   >
@@ -595,14 +720,71 @@ function App() {
                   </button>
                 )}
               </div>
-              <div className="filter-chips">
-                <button className={`chip ${filterStack === 'all' ? 'active' : ''}`} onClick={() => setFilterStack('all')}>Все</button>
-                <button className={`chip ${filterStack === 'csharp' ? 'active' : ''}`} onClick={() => setFilterStack('csharp')}>C#</button>
-                <button className={`chip ${filterStack === 'react' ? 'active' : ''}`} onClick={() => setFilterStack('react')}>React</button>
-                <button className={`chip ${filterStack === 'fullstack' ? 'active' : ''}`} onClick={() => setFilterStack('fullstack')}>Fullstack</button>
-                <button className={`chip ${filterStack === 'hh' ? 'active' : ''}`} onClick={() => setFilterStack('hh')}>HH.ru</button>
-                <button className={`chip ${filterStack === 'tg' ? 'active' : ''}`} onClick={() => setFilterStack('tg')}>Telegram</button>
-              </div>
+
+              {/* Collapsible Advanced Filters Panel */}
+              {showFilters && (
+                <div className="advanced-filters-panel">
+                  <div className="filter-group">
+                    <label className="filter-label">Стек технологий:</label>
+                    <div className="filter-options-row">
+                      {['csharp', 'react', 'asp.net'].map(stack => {
+                        const isSelected = selectedStacks.includes(stack);
+                        const label = stack === 'csharp' ? 'C#' : stack === 'react' ? 'React' : 'ASP.NET';
+                        return (
+                          <button 
+                            key={stack}
+                            className={`filter-chip ${isSelected ? 'active' : ''}`}
+                            onClick={() => {
+                              setSelectedStacks(prev => 
+                                prev.includes(stack) ? prev.filter(s => s !== stack) : [...prev, stack]
+                              );
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="filter-group">
+                    <label className="filter-label">Опыт работы:</label>
+                    <div className="filter-options-row">
+                      {[
+                        { key: 'noExperience', label: 'Без опыта' },
+                        { key: 'between1And3', label: '1-3 года' }
+                      ].map(exp => {
+                        const isSelected = selectedExperiences.includes(exp.key);
+                        return (
+                          <button 
+                            key={exp.key}
+                            className={`filter-chip ${isSelected ? 'active' : ''}`}
+                            onClick={() => {
+                              setSelectedExperiences(prev => 
+                                prev.includes(exp.key) ? prev.filter(e => e !== exp.key) : [...prev, exp.key]
+                              );
+                            }}
+                          >
+                            {exp.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="filter-group-toggle" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+                    <span className="filter-label" style={{ margin: 0, fontSize: '0.85rem' }}>Только с указанной зарплатой</span>
+                    <label className="switch">
+                      <input 
+                        type="checkbox" 
+                        checked={onlyWithSalary} 
+                        onChange={(e) => setOnlyWithSalary(e.target.checked)} 
+                      />
+                      <span className="slider round"></span>
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
 
             {loading ? (
