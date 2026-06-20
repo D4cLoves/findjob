@@ -164,7 +164,7 @@ async def fetch_telegram_vacancies(db: Session):
             url = f"https://t.me/s/{channel}"
             logger.info(f"Scraping Telegram channel: {channel}")
             try:
-                response = await client.get(url, headers=HEADERS)
+                response = await client.get(url, headers={"User-Agent": "D4LovesFindJobApp/1.0 (vladislav.jobdev@gmail.com)"})
                 if response.status_code != 200:
                     logger.warning(f"Failed to fetch channel {channel}: {response.status_code}")
                     continue

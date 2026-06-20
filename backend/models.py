@@ -14,7 +14,7 @@ class Vacancy(Base):
     description = Column(Text)
     tech_stack = Column(String, nullable=True) # comma separated
     cover_letter = Column(Text, nullable=True)
-    status = Column(String, default="new") # new, saved, applied, skipped
+    status = Column(String, default="new", index=True) # new, saved, applied, skipped
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Settings(Base):
